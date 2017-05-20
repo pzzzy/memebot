@@ -1,0 +1,7 @@
+{
+  "dependencies" : {
+    "irc": "latest",
+    "request": "latest",
+    "cheerio": "latest"
+  }
+}

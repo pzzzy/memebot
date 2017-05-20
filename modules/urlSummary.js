@@ -79,14 +79,10 @@ handlers.set("default", ($) => {
   if (title.length == 0) {
     title = ($("title").text() || "").trim();
   }
-  console.log("title", title)
-  console.log("desc", desc)
-  if (title.length > 0 && desc.length > 0) {
-    return `${title} - ${desc}`;
-  } else if (title.length > 0) {
-    return title;
-  } else if (desc.length > 0) {
+  if (desc.length > 0) {
     return desc;
+  } else if (title.length > 30) {
+    return title;
   } else {
     return "";
   }
@@ -114,7 +110,7 @@ function parseURL(bot, channel, url) {
       winston.info("Suppressing message, bot is yielding to another user");
       winston.info(botResponse);
     } else if (botResponse && botResponse.length > 0 && !shouldYield) {
-      bot.say(channel, `${botResponse}`);
+      bot.say(channel, `${botResponse.replace(/\n/g, " ")}`);
     }
   });
 }

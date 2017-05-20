@@ -15,7 +15,10 @@ domainHandlers.set("twitter.com", ($) => {
   const handle = ($("meta[property='og:url']").attr("content") || "").split("/")[3] || "unknown";
   const author = ($("meta[property='og:title']").attr("content") || "").replace(" on Twitter", "");
   const tweetContainer = $("div.tweet.permalink-tweet");
-  let tweet = $("meta[property='og:description']").attr("content").replace(/\n/, " ").replace(/^“|”$/g, "");
+  let tweet = ($("meta[property='og:description']").attr("content") || "").replace(/\n/, " ").replace(/^“|”$/g, "");
+  if (tweet.length == 0) {
+    return "";
+  }
   let date = "";
   let verified = "";
   let image = "";
@@ -64,11 +67,19 @@ function start() {
     debug: true
   });
 
+  let lastSilence = 0;
+
   bot.addListener("message", function(from, to, text, message) {
-    let msg = message.args[1];
-    const matches = msg.match(URL_RE);
-    if (matches) {
-      parseURL(to, matches[0]);
+    let now = (new Date()).getTime();
+    if (from == "meme") {
+      lastSilence = now;
+    }
+    if (now - lastSilence > 3600 * 1000) {
+      let msg = message.args[1];
+      const matches = msg.match(URL_RE);
+      if (matches) {
+        parseURL(to, matches[0]);
+      }
     }
   });
 

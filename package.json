@@ -1,7 +1,9 @@
 {
-  "dependencies" : {
+  "dependencies": {
+    "cheerio": "latest",
+    "forecast": "^0.3.2",
     "irc": "latest",
     "request": "latest",
-    "cheerio": "latest"
+    "winston": "latest"
   }
 }

@@ -1,64 +1,33 @@
 "use strict";
 const config = require('./config');
 const IRC = require('irc');
-const request = require('request');
-const cheerio = require("cheerio");
-const URL = require('url');
+const winston = require('winston');
+const util = require('util');
 
+var d = require('domain').create();
 var bot;
 
-const URL_RE = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/i
+d.on('error', (e) => winston.error(util.inspect(e)));
 
-const domainHandlers = new Map();
+const commands = new Map();
+const BOT_TRIGGER_RE = new RegExp(`^${config.botName}[:\s]+(.*)`);
 
-domainHandlers.set("twitter.com", ($) => {
-  const handle = ($("meta[property='og:url']").attr("content") || "").split("/")[3] || "unknown";
-  const author = ($("meta[property='og:title']").attr("content") || "").replace(" on Twitter", "");
-  const tweetContainer = $("div.tweet.permalink-tweet");
-  let tweet = ($("meta[property='og:description']").attr("content") || "").replace(/\n/, " ").replace(/^“|”$/g, "");
-  if (tweet.length == 0) {
-    return "";
-  }
-  let date = "";
-  let verified = "";
-  let image = "";
-  let images = $("meta[property='og:image:user_generated']").length
-  let videos = $("meta[property='og:video:url']").length
-  if (tweetContainer.length > 0) {
-    date = tweetContainer.find("a.tweet-timestamp span.u-hiddenVisually").text();
-    verified = tweetContainer.find("span.Icon--verified").length > 0 ? " ✔" : "";
-    const image = tweetContainer.find("div.AdaptiveMedia-photoContainer.js-adaptive-photo ").attr("data-image-url");
-    if (videos > 0) {
-      let video = $("meta[property='og:video:url']").attr("content");
-      tweet += ` (Video: ${video})`
-    } else if (images > 0) {
-      let image = $("meta[property='og:image']").attr("content");
-      tweet += ` (Image (1/${images}): ${image})`
+const URLSummarizer = require('./modules/urlSummary');
+const Weather = require('./modules/weather');
+commands.set( 'weather', Weather.exec );
+
+function handleCommand(from, to, text, message) {
+  const matches = message.args[1].match(BOT_TRIGGER_RE);
+
+  if (matches) {
+    const parts = matches[1].trim().split(/\s+/);
+    const key = parts[0].toLowerCase();
+    if (commands.has(key)) {
+      commands.get(key)(bot, parts, from, to);
+      return true;
     }
   }
-  return `TWEET: ${tweet} -- ${author} (@${handle}${verified}) ${date}`;
-});
-domainHandlers.set("www.twitter.com", domainHandlers.get("twitter.com"));
-
-function handleBody(from, url, response) {
-  const $ = cheerio.load(response.body);
-  let str = $("head title").text();
-  if (domainHandlers.has(url.host)) {
-    str = domainHandlers.get(url.host)($);
-  }
-  if (str && str != "") {
-    bot.say(from, str);
-  }
-}
-
-function parseURL(from, url) {
-  const parsed = URL.parse(url);
-  request(parsed.href, (err, response) => {
-    if(err) {
-      return console.log(err);
-    }
-    handleBody(from, parsed, response);
-  });
+  return false;
 }
 
 function start() {
@@ -67,31 +36,23 @@ function start() {
     debug: true
   });
 
-  let lastSilence = 0;
-
-  bot.addListener("message", function(from, to, text, message) {
-    let now = (new Date()).getTime();
-    if (from == "meme") {
-      lastSilence = now;
-    }
-    if (now - lastSilence > 3600 * 1000) {
-      let msg = message.args[1];
-      const matches = msg.match(URL_RE);
-      if (matches) {
-        parseURL(to, matches[0]);
+  bot.addListener("message", (from, to, text, message) => {
+    d.run(() => {
+      if (handleCommand(from, to, text, message)) {
+        return;
       }
-    }
+    });
   });
 
-  bot.addListener("error", function(message) {
-    console.log(message)
-  })
+  bot.addListener("error", (message) => winston.error(message))
 
-  bot.addListener("registered", function() {
+  bot.addListener("registered", () => {
     if(config.password) {
       bot.say("NickServ", "IDENTIFY " + config.password);
     }
   })
+
+  URLSummarizer.setup(bot);
 }
 
 start();

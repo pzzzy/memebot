@@ -4,6 +4,7 @@ const { escape } = require('querystring');
 const { darkSkyAPIKey } = require('../secrets');
 const winston = require('winston');
 const util = require('util')
+const config = require("../config");
 
 const emojiMap = {
   "clear-day": "☀️",
@@ -55,7 +56,8 @@ function weather(bot, words, from, to) {
       const temp = Math.floor(weather.currently.temperature);
       const windSpeed = weather.currently.windSpeed;
       const bearing = weather.currently.windBearing;
-      bot.say(to, `${from}: ${emoji}${emoji ? " " : ""}${summary} in ${niceLocation} (${temp}F, wind ${bearingToString(bearing)} @ ${windSpeed}MPH, humidity ${Math.floor(weather.currently.humidity * 100)}%)`)
+      const sendTo = to == config.botName ? from : to;
+      bot.say(sendTo, `${from}: ${emoji}${emoji ? " " : ""}${summary} in ${niceLocation} (${temp}F, wind ${bearingToString(bearing)} @ ${windSpeed}MPH, humidity ${Math.floor(weather.currently.humidity * 100)}%)`)
     });
   })
 }

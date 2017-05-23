@@ -54,7 +54,11 @@ handlers.set("www.instagram.com", ($) => {
     let bits = desc.split(" - ", 2);
     desc = bits[1];
     bits = desc.replace(" on Instagram:", ":").replace(/[“”]/g, "").split(":", 2);
-    return `${bits[1].trim()} — ${bits[0].trim()}`
+    if (bits.length > 1) {
+      return `${bits[1].trim()} — ${bits[0].trim()}`;
+    } else {
+      return bits[0];
+    }
   }
 });
 
@@ -80,10 +84,17 @@ handlers.set("default", ($) => {
     title = ($("title").text() || "").trim();
   }
   if (desc.length > 0) {
-    return desc;
-  } else if (title.length > 30) {
+    if (desc.length < 50 || true) {
+      return `${title} - ${desc}`
+    } else {
+      return desc;
+    }
+  } else if (title.length > 20) {
     return title;
   } else {
+    winston.info("No good desc or title");
+    winston.info("title", title);
+    winston.info("desc", desc);
     return "";
   }
 });
@@ -99,18 +110,30 @@ function handleBody(url, response) {
 
 function parseURL(bot, channel, url) {
   const parsed = URL.parse(url);
+  winston.info("Fetch URL:", parsed.href)
   request(parsed.href, (err, response) => {
     if(err) {
       winston.error(err);
       return;
     }
-    const botResponse = handleBody(parsed, response);
-    const shouldYield = isSilenced() && config.urlSummarizer.yieldDomains.filter((d) => d == parsed.host).length > 0;
-    if (shouldYield) {
-      winston.info("Suppressing message, bot is yielding to another user");
-      winston.info(botResponse);
-    } else if (botResponse && botResponse.length > 0 && !shouldYield) {
-      bot.say(channel, `${botResponse.replace(/\n/g, " ")}`);
+    const typeOK = (response.headers['content-type'] || "").match("text/html");
+    const lengthOK = parseInt(response.headers['content-length'] || 0, 10) < 1048576;
+
+    if (typeOK && lengthOK) {
+      winston.info("length & info OK")
+      let botResponse = handleBody(parsed, response);
+      const shouldYield = isSilenced() && config.urlSummarizer.yieldDomains.filter((d) => d == parsed.host).length > 0;
+      if (shouldYield) {
+        winston.info("Suppressing message, bot is yielding to another user");
+        winston.info(botResponse);
+      } else if (botResponse && botResponse.length > 0 && !shouldYield) {
+        botResponse = botResponse.replace(/\n/g, " ").slice(0, 400);
+        bot.say(channel, `${botResponse.replace(/\n/g, " ")}`);
+      } else {
+        winston.info("Got nothing to say!", botResponse)
+      }
+    } else {
+      winston.info("Bad length or type", "type", response.headers['content-type'], "length", response.headers['content-length'])
     }
   });
 }
@@ -119,7 +142,8 @@ function parseMessage(bot, from, to, message) {
   let msg = message.args[1];
   const matches = msg.match(URL_RE);
   if (matches) {
-    parseURL(bot, to, matches[0]);
+    const sendTo = to == config.botName ? from : to;
+    parseURL(bot, sendTo, matches[0]);
   }
 }
 

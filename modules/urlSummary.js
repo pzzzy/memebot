@@ -34,7 +34,7 @@ handlers.set("twitter.com", ($) => {
   let videos = $("meta[property='og:video:url']").length
   if (tweetContainer.length > 0) {
     date = tweetContainer.find("a.tweet-timestamp span.u-hiddenVisually").text();
-    verified = tweetContainer.find("span.Icon--verified").length > 0 ? " ✔" : "";
+    verified = tweetContainer.find(".permalink-header span.Icon--verified").length > 0 ? " ✔" : "";
     const image = tweetContainer.find("div.AdaptiveMedia-photoContainer.js-adaptive-photo ").attr("data-image-url");
     if (videos > 0) {
       let video = $("meta[property='og:video:url']").attr("content");
@@ -70,7 +70,7 @@ handlers.set("www.youtube.com", ($) => {
   let duration = $("meta[itemprop=duration]").attr("content");
   if (duration) {
     let bits = duration.split(/(PT|M|S)/);
-    let niceDuration = `${padStr(bits[2])}:${bits[4]}`;
+    let niceDuration = `${padStr(bits[2])}:${padStr(bits[4])}`;
     return `${title} (${niceDuration})`;
   } else {
     return title;

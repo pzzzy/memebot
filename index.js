@@ -14,6 +14,7 @@ const BOT_TRIGGER_RE = new RegExp(`^${config.botName}[:\s]+(.*)`);
 
 const URLSummarizer = require('./modules/urlSummary');
 const Weather = require('./modules/weather');
+const LinkLog = require('./modules/linkLog');
 commands.set( 'weather', Weather.exec );
 
 function handleCommand(from, to, text, message) {
@@ -53,6 +54,7 @@ function start() {
   })
 
   URLSummarizer.setup(bot);
+  LinkLog.setup(bot);
 }
 
 start();

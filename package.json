@@ -3,6 +3,8 @@
     "cheerio": "latest",
     "forecast": "^0.3.2",
     "irc": "latest",
+    "moment": "^2.18.1",
+    "pg": "^6.2.4",
     "request": "latest",
     "winston": "latest"
   }

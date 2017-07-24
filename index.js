@@ -10,7 +10,7 @@ var bot;
 d.on('error', (e) => winston.error(util.inspect(e)));
 
 const commands = new Map();
-const BOT_TRIGGER_RE = new RegExp(`^${config.botName}[:\s]+(.*)`);
+const BOT_TRIGGER_RE = new RegExp(`^${config.botName}[: ]+(.*)`);
 
 const URLSummarizer = require('./modules/urlSummary');
 const Weather = require('./modules/weather');
@@ -34,6 +34,7 @@ function handleCommand(from, to, text, message) {
 function start() {
   bot = new IRC.Client(config.server, config.botName, {
     channels: config.channels,
+    retryDelay: 10000,
     debug: true
   });
 

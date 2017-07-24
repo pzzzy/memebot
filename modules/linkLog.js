@@ -7,12 +7,13 @@ const URL = require('url');
 const URL_RE = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/i
 
 function normalizeUrl(url) {
-  if (url.host.match(/youtube\.com$/) && url.query.v) {
-    url.query = {v: url.query.v}
+  delete url.hash;
+  if (url.host.match(/\.youtube\.com$/) && url.query.v) {
+    url.host = "www.youtube.com";
+    url.query = {v: url.query.v};
     delete url.search;
-    return URL.format(url);
   }
-  return url.href;
+  return URL.format(url);
 }
 
 function parseURL(bot, user, channel, url) {
@@ -34,7 +35,7 @@ function parseURL(bot, user, channel, url) {
         db.query("UPDATE links SET times_seen = times_seen + 1, last_seen = $2::timestamp WHERE id = $1", [r.id, new Date()]);
         let extraTime = "";
         if (r.times_seen > 1) {
-          extraTime = `, last seen ${moment(r.lastSeen).fromNow()}`;
+          extraTime = `, last seen ${moment(r.last_seen).fromNow()}`;
         }
         bot.say(channel, `Too slow! First posted by ${r.owner} ${moment(r.first_seen).fromNow()}! (Posted ${r.times_seen} time${r.times_seen != 1 ? "s" : ""}${extraTime})`);
       }
@@ -71,7 +72,7 @@ function migrateSchema() {
       times_seen INTEGER DEFAULT 0,
       CONSTRAINT unique_href UNIQUE(href)
     );
-    CREATE UNIQUE INDEX href_index ON links (title);
+    CREATE UNIQUE INDEX IF NOT EXISTS hrefs_index ON links (href);
     `;
   db.query(query, [], (err, res) => {
     if (err) {

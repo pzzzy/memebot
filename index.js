@@ -10,7 +10,7 @@ var bot;
 d.on('error', (e) => winston.error(util.inspect(e)));
 
 const commands = new Map();
-const BOT_TRIGGER_RE = new RegExp(`^${config.botName}[: ]+(.*)`);
+let BOT_TRIGGER_RE = null;
 
 const URLSummarizer = require('./modules/urlSummary');
 const Weather = require('./modules/weather');
@@ -49,6 +49,8 @@ function start() {
   bot.addListener("error", (message) => winston.error(message))
 
   bot.addListener("registered", () => {
+    BOT_TRIGGER_RE = new RegExp(`^${bot.nick}[: ]+(.*)`);
+
     if(config.password) {
       bot.say("NickServ", "IDENTIFY " + config.password);
     }

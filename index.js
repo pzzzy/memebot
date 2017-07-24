@@ -56,6 +56,7 @@ function start() {
 
   URLSummarizer.setup(bot);
   LinkLog.setup(bot);
+  Weather.setup(bot);
 }
 
 start();

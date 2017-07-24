@@ -3,6 +3,8 @@ const cheerio = require('cheerio');
 const URL = require('url');
 const winston = require('winston');
 const config = require("../config");
+const Entities = require('html-entities').AllHtmlEntities;
+const entities = new Entities();
 
 const URL_RE = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/i
 const handlers = new Map();
@@ -121,7 +123,7 @@ function parseURL(bot, channel, url) {
 
     if (typeOK && lengthOK) {
       winston.info("length & info OK")
-      let botResponse = handleBody(parsed, response);
+      let botResponse = entities.decode(handleBody(parsed, response));
       const shouldYield = isSilenced() && config.urlSummarizer.yieldDomains.filter((d) => d == parsed.host).length > 0;
       if (shouldYield) {
         winston.info("Suppressing message, bot is yielding to another user");

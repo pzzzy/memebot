@@ -128,8 +128,6 @@ function parseURL(bot, channel, url) {
           winston.error(err);
           return;
         }
-        const typeOK = (response.headers['content-type'] || "").match("text/html");
-        const lengthOK = parseInt(response.headers['content-length'] || 0, 10) < 1048576;
 
         let botResponse = entities.decode(handleBody(parsed, response));
         const shouldYield = isSilenced() && config.urlSummarizer.yieldDomains.filter((d) => d == parsed.host).length > 0;

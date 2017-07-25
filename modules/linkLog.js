@@ -13,6 +13,7 @@ function normalizeUrl(url) {
     url.query = {v: url.query.v};
     delete url.search;
   }
+
   return URL.format(url);
 }
 
@@ -23,6 +24,12 @@ function parseURL(bot, user, channel, url) {
 
   const parsed = URL.parse(url, true);
   var normalized = normalizeUrl(parsed);
+
+  // We don't care about Twitch reposts
+  if (parsed.host.match(/\.?(twitch\.tv)$/)) {
+    return;
+  }
+
   db.query("select * from links where href = $1::text and channel = $2::text", [normalized, channel], (err, res) => {
     if ( err ) {
       winston.error(err);

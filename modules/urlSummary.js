@@ -113,7 +113,7 @@ function handleBody(url, response) {
 function parseURL(bot, channel, url) {
   const parsed = URL.parse(url);
   winston.info("Fetch URL:", parsed.href)
-  request(parsed.href, (err, response) => {
+  request(parsed.href, {"method": "HEAD"}, (err, response) => {
     if(err) {
       winston.error(err);
       return;
@@ -123,17 +123,26 @@ function parseURL(bot, channel, url) {
 
     if (typeOK && lengthOK) {
       winston.info("length & info OK")
-      let botResponse = entities.decode(handleBody(parsed, response));
-      const shouldYield = isSilenced() && config.urlSummarizer.yieldDomains.filter((d) => d == parsed.host).length > 0;
-      if (shouldYield) {
-        winston.info("Suppressing message, bot is yielding to another user");
-        winston.info(botResponse);
-      } else if (botResponse && botResponse.length > 0 && !shouldYield) {
-        botResponse = botResponse.replace(/\n/g, " ").slice(0, 400);
-        bot.say(channel, `${botResponse.replace(/\n/g, " ")}`);
-      } else {
-        winston.info("Got nothing to say!", botResponse)
-      }
+      request(parsed.href, (err, response) => {
+        if(err) {
+          winston.error(err);
+          return;
+        }
+        const typeOK = (response.headers['content-type'] || "").match("text/html");
+        const lengthOK = parseInt(response.headers['content-length'] || 0, 10) < 1048576;
+
+        let botResponse = entities.decode(handleBody(parsed, response));
+        const shouldYield = isSilenced() && config.urlSummarizer.yieldDomains.filter((d) => d == parsed.host).length > 0;
+        if (shouldYield) {
+          winston.info("Suppressing message, bot is yielding to another user");
+          winston.info(botResponse);
+        } else if (botResponse && botResponse.length > 0 && !shouldYield) {
+          botResponse = botResponse.replace(/\n/g, " ").slice(0, 400);
+          bot.say(channel, `${botResponse.replace(/\n/g, " ")}`);
+        } else {
+          winston.info("Got nothing to say!", botResponse)
+        }
+      });
     } else {
       winston.info("Bad length or type", "type", response.headers['content-type'], "length", response.headers['content-length'])
     }

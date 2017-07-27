@@ -4,8 +4,7 @@ const { escape } = require('querystring');
 const { darkSkyAPIKey } = require('../secrets');
 const winston = require('winston');
 const util = require('util')
-const config = require("../config");
-const db = require('./db');
+const db = require('../lib/db');
 
 const emojiMap = {
   "clear-day": "☀️",
@@ -20,6 +19,9 @@ const emojiMap = {
 }
 
 const BEARINGS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+
+let _bot = null;
+
 function bearingToString(windBearing) {
   const index = Math.floor(((windBearing - 22.5) / 360) * 8);
   return BEARINGS[index % 8];
@@ -104,7 +106,7 @@ function weather(bot, words, from, to) {
         const temp = Math.floor(weather.currently.temperature);
         const windSpeed = weather.currently.windSpeed;
         const bearing = weather.currently.windBearing;
-        const sendTo = to == config.botName ? from : to;
+        const sendTo = to == _bot.nick ? from : to;
         bot.say(sendTo, `${from}: ${emoji}${emoji ? " " : ""}${summary} in ${niceLocation} (${temp}F, wind ${bearingToString(bearing)} @ ${windSpeed}MPH, humidity ${Math.floor(weather.currently.humidity * 100)}%)`)
       });
     })
@@ -129,11 +131,12 @@ function migrateSchema() {
   })
 }
 
-function setup() {
+function setup(bot, commands) {
+  _bot = bot;
+  commands.set('weather', weather);
   migrateSchema();
 }
 
 module.exports = {
-  exec: weather,
   setup: setup
 }

@@ -16,6 +16,8 @@ const isSilenced = ()=> {
   return now - lastSilence < 3600 * 1000;
 }
 
+let _bot = null;
+
 function padStr(str) {
   var pad = "00";
   return pad.substring(0, pad.length - str.length) + str;
@@ -151,7 +153,7 @@ function parseMessage(bot, from, to, message) {
   let msg = message.args[1];
   const matches = msg.match(URL_RE);
   if (matches) {
-    const sendTo = to == config.botName ? from : to;
+    const sendTo = to == _bot.nick ? from : to;
     parseURL(bot, sendTo, matches[0]);
   }
 }
@@ -170,7 +172,8 @@ function updateSilence(bot, user) {
   }
 }
 
-function setup(bot) {
+function setup(bot, commands) {
+  _bot = bot;
   bot.addListener("message", (from, to, text, message) => {
     updateSilence(bot, from);
     parseMessage(bot, from, to, message);

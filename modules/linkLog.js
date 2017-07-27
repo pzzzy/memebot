@@ -1,6 +1,5 @@
-const db = require('./db');
+const db = require('../lib/db');
 const winston = require('winston');
-const config = require("../config");
 const moment = require('moment');
 
 const URL = require('url');
@@ -88,7 +87,7 @@ function migrateSchema() {
     }
   })
 }
-function setup(bot) {
+function setup(bot, commands) {
   migrateSchema();
 
   bot.addListener("message", (from, to, text, message) => {

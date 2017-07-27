@@ -1,6 +1,6 @@
 module.exports = {
   channels: ["#elitistjerks"],
-  server: "irc.gamesurge.net",
+  server: "Gameservers.NJ.US.GameSurge.net",
   botName: "rememe",
   urlSummarizer: {
     yieldToOtherBots: true,

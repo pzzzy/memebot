@@ -12,11 +12,6 @@ d.on('error', (e) => winston.error(util.inspect(e)));
 const commands = new Map();
 let BOT_TRIGGER_RE = null;
 
-const URLSummarizer = require('./modules/urlSummary');
-const Weather = require('./modules/weather');
-const LinkLog = require('./modules/linkLog');
-commands.set( 'weather', Weather.exec );
-
 function handleCommand(from, to, text, message) {
   const matches = message.args[1].match(BOT_TRIGGER_RE);
 
@@ -56,9 +51,13 @@ function start() {
     }
   })
 
-  URLSummarizer.setup(bot);
-  LinkLog.setup(bot);
-  Weather.setup(bot);
+  var normalizedPath = require("path").join(__dirname, "modules");
+  require("fs").readdirSync(normalizedPath).forEach(function(file) {
+    let module = require("./modules/" + file)
+    if (module.setup) {
+      module.setup(bot, commands);
+    }
+  });
 }
 
 start();

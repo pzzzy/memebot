@@ -35,7 +35,7 @@ handlers.set("twitter.com", ($) => {
   let images = $("meta[property='og:image:user_generated']").length
   let videos = $("meta[property='og:video:url']").length
   if (tweetContainer.length > 0) {
-    date = tweetContainer.find("a.tweet-timestamp span.u-hiddenVisually, span._timestamp").text();
+    date = tweetContainer.find("a.tweet-timestamp span.u-hiddenVisually, span._timestamp").last().text();
     verified = tweetContainer.find(".permalink-header span.Icon--verified").length > 0 ? " ✔" : "";
     const image = tweetContainer.find("div.AdaptiveMedia-photoContainer.js-adaptive-photo ").attr("data-image-url");
     if (videos > 0) {

@@ -23,6 +23,15 @@ function padStr(str) {
   return pad.substring(0, pad.length - str.length) + str;
 }
 
+function mungeURL(url) {
+  let u = URL.parse(url);
+  if (u.host == "mobile.twitter.com") {
+    u.host = "twitter.com";
+    u = URL.parse(URL.format(u));
+  }
+  return u;
+}
+
 handlers.set("twitter.com", ($) => {
   const handle = ($("meta[property='og:url']").attr("content") || "").split("/")[3] || "unknown";
   const author = ($("meta[property='og:title']").attr("content") || "").replace(" on Twitter", "");
@@ -113,7 +122,7 @@ function handleBody(url, response) {
 }
 
 function parseURL(bot, channel, url) {
-  const parsed = URL.parse(url);
+  const parsed = mungeURL(url);
   winston.info("Fetch URL:", parsed.href)
   request(parsed.href, {"method": "HEAD"}, (err, response) => {
     if(err) {

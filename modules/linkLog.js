@@ -1,15 +1,15 @@
-const db = require('../lib/db');
-const winston = require('winston');
-const moment = require('moment');
+const db = require("../lib/db");
+const winston = require("winston");
+const moment = require("moment");
 
-const URL = require('url');
-const URL_RE = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/i
+const URL = require("url");
+const URL_RE = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/i;
 
 function normalizeUrl(url) {
   delete url.hash;
   if (url.host.match(/\.youtube\.com$/) && url.query.v) {
     url.host = "www.youtube.com";
-    url.query = {v: url.query.v};
+    url.query = { v: url.query.v };
     delete url.search;
   }
 
@@ -29,37 +29,58 @@ function parseURL(bot, user, channel, url) {
     return;
   }
 
-  db.query("select * from links where href = $1::text and channel = $2::text", [normalized, channel], (err, res) => {
-    if ( err ) {
-      winston.error(err);
-      return;
-    }
-
-    if (res.rows.length > 0) {
-      var r = res.rows[0];
-      if ( user != r.owner) {
-        db.query("UPDATE links SET times_seen = times_seen + 1, last_seen = $2::timestamp WHERE id = $1", [r.id, new Date()]);
-        let extraTime = "";
-        if (r.times_seen > 1) {
-          extraTime = `, last seen ${moment(r.last_seen).fromNow()}`;
-        }
-        bot.say(channel, `Too slow! First posted by ${r.owner} ${moment(r.first_seen).fromNow()}! (Posted ${r.times_seen} time${r.times_seen != 1 ? "s" : ""}${extraTime})`);
+  db.query(
+    "select * from links where href = $1::text and channel = $2::text",
+    [normalized, channel],
+    (err, res) => {
+      if (err) {
+        winston.error(err);
+        return;
       }
-    } else {
-      winston.info("URL not found, crediting to", channel, normalized);
-      db.query("INSERT INTO links (href, owner, channel, times_seen) VALUES ($1, $2, $3, $4)", [normalized, user, channel, 1], (err, res) => {
-        if ( err ) {
-          winston.error(err);
-          return;
+
+      if (res.rows.length > 0) {
+        var r = res.rows[0];
+        if (user != r.owner) {
+          db.query(
+            "UPDATE links SET times_seen = times_seen + 1, last_seen = $2::timestamp WHERE id = $1",
+            [r.id, new Date()]
+          );
+          let extraTime = "";
+          if (r.times_seen > 1) {
+            extraTime = `, last seen ${moment(r.last_seen).fromNow()}`;
+          }
+          bot.say(
+            channel,
+            `Too slow! First posted by ${r.owner} ${moment(
+              r.first_seen
+            ).fromNow()}! (Posted ${r.times_seen} time${r.times_seen != 1
+              ? "s"
+              : ""}${extraTime})`
+          );
         }
-        winston.debug(res);
-      });
+      } else {
+        winston.info("URL not found, crediting to", channel, normalized);
+        db.query(
+          "INSERT INTO links (href, owner, channel, times_seen) VALUES ($1, $2, $3, $4)",
+          [normalized, user, channel, 1],
+          (err, res) => {
+            if (err) {
+              winston.error(err);
+              return;
+            }
+            winston.debug(res);
+          }
+        );
+      }
     }
-  });
+  );
 }
 
 function parseMessage(bot, from, to, message) {
   let msg = message.args[1];
+  if (msg.match(/\bNOBOT\b/i)) {
+    return;
+  }
   const matches = msg.match(URL_RE);
   if (matches) {
     parseURL(bot, from, to, matches[0]);
@@ -85,16 +106,16 @@ function migrateSchema() {
       winston.error(err);
       return;
     }
-  })
+  });
 }
 function setup(bot, commands) {
   migrateSchema();
 
   bot.addListener("message", (from, to, text, message) => {
     parseMessage(bot, from, to, message);
-  })
+  });
 }
 
 module.exports = {
   setup: setup
-}
+};

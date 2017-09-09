@@ -1,13 +1,13 @@
 "use strict";
-const config = require('./config');
-const IRC = require('irc');
-const winston = require('winston');
-const util = require('util');
+const config = require("./config");
+const IRC = require("irc");
+const winston = require("winston");
+const util = require("util");
 
-var d = require('domain').create();
+var d = require("domain").create();
 var bot;
 
-d.on('error', (e) => winston.error(util.inspect(e)));
+d.on("error", e => winston.error(util.inspect(e)));
 
 const commands = new Map();
 let BOT_TRIGGER_RE = null;
@@ -41,23 +41,25 @@ function start() {
     });
   });
 
-  bot.addListener("error", (message) => winston.error(message))
+  bot.addListener("error", message => winston.error(message));
 
   bot.addListener("registered", () => {
     BOT_TRIGGER_RE = new RegExp(`^${bot.nick}[: ]+(.*)`);
 
-    if(config.password) {
+    if (config.password) {
       bot.say("NickServ", "IDENTIFY " + config.password);
     }
-  })
+  });
 
   var normalizedPath = require("path").join(__dirname, "modules");
-  require("fs").readdirSync(normalizedPath).forEach(function(file) {
-    let module = require("./modules/" + file)
-    if (module.setup) {
-      module.setup(bot, commands);
-    }
-  });
+  require("fs")
+    .readdirSync(normalizedPath)
+    .forEach(function(file) {
+      let module = require("./modules/" + file);
+      if (module.setup) {
+        module.setup(bot, commands);
+      }
+    });
 }
 
 start();

@@ -13,10 +13,22 @@ const commands = new Map();
 let BOT_TRIGGER_RE = null;
 
 function handleCommand(from, to, text, message) {
-  const matches = message.args[1].match(BOT_TRIGGER_RE);
+  let isMatch = false;
+  let rest = null;
 
-  if (matches) {
-    const parts = matches[1].trim().split(/\s+/);
+  if (to.trim() === bot.nick.trim()) {
+    isMatch = true;
+    rest = message.args[1];
+  } else {
+    const matches = message.args[1].match(BOT_TRIGGER_RE);
+    if (matches) {
+      isMatch = true;
+      rest = matches[1];
+    }
+  }
+
+  if (isMatch) {
+    const parts = rest.trim().split(/\s+/);
     const key = parts[0].toLowerCase();
     if (commands.has(key)) {
       commands.get(key)(bot, parts, from, to);
@@ -32,6 +44,13 @@ function start() {
     retryDelay: 10000,
     debug: true
   });
+
+  setInterval(() => {
+    if (bot.nick.trim() !== config.botName.trim()) {
+      winston.info("renaming:", bot.nick, "!=", config.botName);
+      bot.send("NICK", config.botName);
+    }
+  }, 10000);
 
   bot.addListener("message", (from, to, text, message) => {
     d.run(() => {

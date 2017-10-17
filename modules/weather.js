@@ -90,6 +90,8 @@ function weather(bot, words, from, to) {
       query
     )}`;
     winston.info(url);
+    const sendTo = to == _bot.nick ? from : to;
+
     request(url, (err, response) => {
       if (err) {
         winston.error(err);
@@ -97,7 +99,7 @@ function weather(bot, words, from, to) {
       }
       const resp = JSON.parse(response.body);
       if (!resp.results[0]) {
-        bot.say(to, `${from}: Sorry, I couldn't find that location`);
+        bot.say(sendTo, `${from}: Sorry, I couldn't find that location`);
         return;
       }
       const location = resp.results[0].geometry.location;
@@ -118,7 +120,6 @@ function weather(bot, words, from, to) {
         const temp = Math.floor(weather.currently.temperature);
         const windSpeed = weather.currently.windSpeed;
         const bearing = weather.currently.windBearing;
-        const sendTo = to == _bot.nick ? from : to;
         bot.say(
           sendTo,
           `${from}: ${emoji}${emoji

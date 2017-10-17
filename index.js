@@ -55,9 +55,12 @@ function start() {
   require("fs")
     .readdirSync(normalizedPath)
     .forEach(function(file) {
-      let module = require("./modules/" + file);
-      if (module.setup) {
-        module.setup(bot, commands);
+      if (file.match(/\.js$/)) {
+        console.log( "Loading module " + file );
+        let module = require("./modules/" + file);
+        if (module.setup) {
+          module.setup(bot, commands);
+        }
       }
     });
 }

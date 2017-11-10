@@ -16,7 +16,7 @@ function normalizeUrl(url) {
   return URL.format(url);
 }
 
-function parseURL(bot, user, channel, url) {
+function parseURL(bot, user, channel, url, callback) {
   if (channel[0] != "#") {
     return;
   }
@@ -37,53 +37,84 @@ function parseURL(bot, user, channel, url) {
         winston.error(err);
         return;
       }
-
-      if (res.rows.length > 0) {
-        var r = res.rows[0];
-        if (user != r.owner) {
-          db.query(
-            "UPDATE links SET times_seen = times_seen + 1, last_seen = $2::timestamp WHERE id = $1",
-            [r.id, new Date()]
-          );
-          let extraTime = "";
-          if (r.times_seen > 1) {
-            extraTime = `, last seen ${moment(r.last_seen).fromNow()}`;
-          }
-          bot.say(
-            channel,
-            `Too slow! First posted by ${r.owner} ${moment(
-              r.first_seen
-            ).fromNow()}! (Posted ${r.times_seen} time${r.times_seen != 1
-              ? "s"
-              : ""}${extraTime})`
-          );
-        }
-      } else {
-        winston.info("URL not found, crediting to", channel, normalized);
-        db.query(
-          "INSERT INTO links (href, owner, channel, times_seen) VALUES ($1, $2, $3, $4)",
-          [normalized, user, channel, 1],
-          (err, res) => {
-            if (err) {
-              winston.error(err);
-              return;
-            }
-            winston.debug(res);
-          }
-        );
-      }
+      callback(bot, res, channel, normalized, user);
     }
   );
 }
 
+function logLink(bot, res, channel, normalized, user) {
+  if (res.rows.length > 0) {
+    var r = res.rows[0];
+    if (user != r.owner) {
+      db.query(
+        "UPDATE links SET times_seen = times_seen + 1, last_seen = $2::timestamp WHERE id = $1",
+        [r.id, new Date()]
+      );
+      let extraTime = "";
+      if (r.times_seen > 1) {
+        extraTime = `, last seen ${moment(r.last_seen).fromNow()}`;
+      }
+      bot.say(
+        channel,
+        `Too slow! First posted by ${r.owner} ${moment(
+          r.first_seen
+        ).fromNow()}! (Posted ${r.times_seen} time${r.times_seen != 1
+          ? "s"
+          : ""}${extraTime})`
+      );
+    }
+  } else {
+    winston.info("URL not found, crediting to", channel, normalized);
+    db.query(
+      "INSERT INTO links (href, owner, channel, times_seen) VALUES ($1, $2, $3, $4)",
+      [normalized, user, channel, 1],
+      (err, res) => {
+        if (err) {
+          winston.error(err);
+          return;
+        }
+        winston.debug(res);
+      }
+    );
+  }
+}
+
 function parseMessage(bot, from, to, message) {
   let msg = message.args[1];
-  if (msg.match(/\bNOBOT\b/i)) {
+  if (msg.match(/\b(NOBOT|linkcheck)\b/i)) {
     return;
   }
   const matches = msg.match(URL_RE);
   if (matches) {
-    parseURL(bot, from, to, matches[0]);
+    parseURL(bot, from, to, matches[0], logLink);
+  }
+}
+
+function reportLink(bot, res, channel, normalized, user) {
+  if(res.rows.length > 0 ) {
+    var r = res.rows[0];
+
+    let extraTime = "";
+    if (r.times_seen > 1) {
+      extraTime = `, last seen ${moment(r.last_seen).fromNow()}`;
+    }
+    bot.say(
+      channel,
+      `${user}: Link posted by ${r.owner} ${moment(
+        r.first_seen
+      ).fromNow()}! (Posted ${r.times_seen} time${r.times_seen != 1
+        ? "s"
+        : ""}${extraTime})`
+    );
+  } else {
+    bot.say(channel, `${user}: I haven't seen that link yet.`)
+  }
+}
+
+function linkCheck(bot, words, from, to) {
+  const matches = words.join(" ").match(URL_RE);
+  if (matches) {
+    const ret = parseURL(bot, from, to, matches[0], reportLink);
   }
 }
 
@@ -108,9 +139,11 @@ function migrateSchema() {
     }
   });
 }
+
 function setup(bot, commands) {
   migrateSchema();
 
+  commands.set("linkcheck", linkCheck);
   bot.addListener("message", (from, to, text, message) => {
     parseMessage(bot, from, to, message);
   });

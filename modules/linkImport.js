@@ -35,10 +35,11 @@ function parseURL(bot, user, channel, url) {
 }
 
 function adjustScore(channel, nick, delta) {
-  db.query(
+  return db.query(
     `INSERT INTO links_score (channel, nick, score) VALUES ($1, $2, $3)
-      ON CONFLICT (channel, nick)
-      DO UPDATE SET score = links_score.score + $3::int`,
+        ON CONFLICT (channel, nick)
+        DO UPDATE SET score = links_score.score + $3::int
+        RETURNING *`,
     [channel, nick, delta]
   );
 }
@@ -55,7 +56,7 @@ function reportLinkViolation(
   if (times_seen > 1) {
     extraTime = `, last seen ${moment(last_seen).fromNow()}`;
   }
-  bot.say(
+  return bot.say(
     channel,
     `Too slow! First posted by ${owner} ${moment(
       first_seen
@@ -92,18 +93,23 @@ function parseMessage(bot, from, to, message) {
     return parseURL(bot, from, to, matches[0]).then(res => {
       const r = res.rows[0];
       if (from != r.owner) {
-        adjustScore(to, r.owner, 1);
-        adjustScore(to, from, -1);
-        reportLinkViolation(
-          bot,
-          to,
-          r.times_seen,
-          r.first_seen,
-          r.last_seen,
-          r.owner
-        );
+        const p2 = adjustScore(to, from, -1);
+        const p1 = adjustScore(to, r.owner, 1);
+
+        return p1.then(p2).then(() => {
+          reportLinkViolation(
+            bot,
+            to,
+            r.times_seen,
+            r.first_seen,
+            r.last_seen,
+            r.owner
+          );
+          return r;
+        });
+      } else {
+        return r;
       }
-      return r;
     });
   }
 }
@@ -118,7 +124,7 @@ function migrateSchema() {
       first_seen TIMESTAMP DEFAULT current_timestamp,
       last_seen TIMESTAMP DEFAULT current_timestamp,
       times_seen INTEGER DEFAULT 0,
-      CONSTRAINT unique_href UNIQUE(href)
+      CONSTRAINT unique_href UNIQUE(channel, href)
     );
     CREATE UNIQUE INDEX IF NOT EXISTS hrefs_index ON links (channel,href);
 

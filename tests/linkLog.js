@@ -28,20 +28,32 @@ describe("linkLog", () => {
       expect(row.times_seen).to.equal(1);
     });
 
-    it("should parse and log scores for repeated links", async () => {
+    it("credits the originator for repeated links", async () => {
       await linkLog.parseMessage(bot, "User", "#channel", {
         args: [null, "https://mochajs.org/"]
       });
-      await linkLog.parseMessage(bot, "AnotherUser", "#channel", {
+      const row = await linkLog.parseMessage(bot, "AnotherUser", "#channel", {
         args: [null, "https://mochajs.org/"]
       });
+      expect(row.times_seen).to.equal(2);
 
       const originatorScore = await db.query(
         "select * from links_score where channel = $1::text and nick = $2::text",
         ["#channel", "User"]
       );
       expect(originatorScore.rows[0].score).to.equal(1);
+    });
 
+    it("penalizes the relinker for repeated links", async () => {
+      await linkLog.parseMessage(bot, "User", "#channel", {
+        args: [null, "https://mochajs.org/"]
+      });
+      const row = await linkLog.parseMessage(bot, "AnotherUser", "#channel", {
+        args: [null, "https://mochajs.org/"]
+      });
+      expect(row.times_seen).to.equal(2);
+
+      console.log("fetch score");
       const relinkerScore = await db.query(
         "select * from links_score where channel = $1::text and nick = $2::text",
         ["#channel", "AnotherUser"]

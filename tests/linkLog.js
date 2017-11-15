@@ -5,17 +5,11 @@ const chai = require("chai");
 const db = require("../lib/db");
 const expect = chai.expect;
 
-const DatabaseCleaner = require("database-cleaner");
-var databaseCleaner = new DatabaseCleaner("postgres");
+require("./support");
 
 const bot = {
   say: sinon.stub().returns(null)
 };
-
-if (process.env.NODE_ENV != "test") {
-  console.log("Run with NODE_ENV=test");
-  process.exit();
-}
 
 beforeEach(async () => {
   await db.query(`
@@ -38,7 +32,7 @@ describe("linkLog", () => {
       await linkLog.parseMessage(bot, "User", "#channel", {
         args: [null, "https://mochajs.org/"]
       });
-      const row = await linkLog.parseMessage(bot, "AnotherUser", "#channel", {
+      await linkLog.parseMessage(bot, "AnotherUser", "#channel", {
         args: [null, "https://mochajs.org/"]
       });
 
@@ -55,8 +49,4 @@ describe("linkLog", () => {
       expect(relinkerScore.rows[0].score).to.equal(-1);
     });
   });
-});
-
-after(async () => {
-  await db.pool.end();
 });

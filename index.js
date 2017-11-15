@@ -49,6 +49,7 @@ function start() {
     if (bot.nick.trim() !== config.botName.trim()) {
       winston.info("renaming:", bot.nick, "!=", config.botName);
       bot.send("NICK", config.botName);
+      BOT_TRIGGER_RE = new RegExp(`^${config.botName}[: ]+(.*)`);
     }
   }, 10000);
 
@@ -75,7 +76,7 @@ function start() {
     .readdirSync(normalizedPath)
     .forEach(function(file) {
       if (file.match(/\.js$/)) {
-        console.log( "Loading module " + file );
+        console.log("Loading module " + file);
         let module = require("./modules/" + file);
         if (module.setup) {
           module.setup(bot, commands);

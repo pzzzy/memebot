@@ -7,6 +7,7 @@
     "moment": "^2.18.1",
     "pg": "^6.2.4",
     "request": "latest",
-    "winston": "latest"
+    "winston": "latest",
+    "yahoo-stocks": "^2.0.1"
   }
 }

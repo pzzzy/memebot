@@ -141,8 +141,17 @@ function handleBody(url, response) {
   }
 }
 
+function isBlacklisted(url) {
+  return config.summaryBlacklist.some(regex => url.host.match(regex));
+}
+
 function parseURL(bot, channel, url) {
   const parsed = mungeURL(url);
+  if (isBlacklisted(parsed)) {
+    winston.info("Site is blacklisted, skipping");
+    return;    
+  }
+
   winston.info("Fetch URL:", parsed.href);
   request(parsed.href, { method: "HEAD" }, (err, response) => {
     if (err) {

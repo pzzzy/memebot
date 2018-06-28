@@ -6,7 +6,7 @@ const config = require("../config");
 const Entities = require("html-entities").AllHtmlEntities;
 const entities = new Entities();
 
-const URL_RE = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/i;
+const URL_RE = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=\(\),]*)/i;
 const handlers = new Map();
 
 const silence = () => (lastSilence = new Date().getTime());
@@ -202,6 +202,8 @@ function parseMessage(bot, from, to, message) {
   const matches = msg.match(URL_RE);
   if (matches) {
     const sendTo = to == _bot.nick ? from : to;
+    url = matches[0];
+    url = url.replace(/[,\(\)]$/, "");
     parseURL(bot, sendTo, matches[0]);
   }
 }

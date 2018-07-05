@@ -1,7 +1,7 @@
 const forecast = require("forecast");
 const request = require("request");
 const { escape } = require("querystring");
-const { darkSkyAPIKey } = require("../secrets");
+const { darkSkyAPIKey, gcpGeocodingApiKey } = require("../secrets");
 const winston = require("winston");
 const util = require("util");
 const db = require("../lib/db");
@@ -86,7 +86,7 @@ function getWeatherLocation(words, channel, nick, cb) {
 
 function weather(bot, words, from, to) {
   getWeatherLocation(words, to, from, query => {
-    let url = `http://maps.googleapis.com/maps/api/geocode/json?address=${escape(
+    let url = `https://maps.googleapis.com/maps/api/geocode/json?key=${escape(gcpGeocodingApiKey)}&address=${escape(
       query
     )}`;
     winston.info(url);

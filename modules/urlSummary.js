@@ -25,63 +25,52 @@ function padStr(str) {
 
 function mungeURL(url) {
   let u = URL.parse(url);
-  if (u.host.match(/\.twitter\.com$/)) {
-    u.host = "mobile.twitter.com";
+  if (u.host == "mobile.twitter.com") {
+    u.host = "twitter.com";
     u = URL.parse(URL.format(u));
   }
   return u;
 }
 
-handlers.set("twitter.com", ($, url) => {
-  const tweetID = $("meta[name='twitter-redirect-url']").attr("content").split("status_id=")[1]
-  const tweetContainer = $(`.tweet-content .tweet-text[data-id='${tweetID}']`).parent();
-  const handle = tweetContainer.closest(".main-tweet").find(".user-info .fullname").first().text().trim();
-  const author = tweetContainer.closest(".main-tweet").find(".user-info .username").first().text().trim();
-  tweetContainer.find(".twitter_external_link").remove()
-  let tweet = tweetContainer.find(".tweet-text")
-    .text().trim()
+handlers.set("twitter.com", $ => {
+  const handle =
+    ($("meta[property='og:url']").attr("content") || "").split("/")[3] ||
+    "unknown";
+  const author = ($("meta[property='og:title']").attr("content") || "")
+    .replace(" on Twitter", "");
+  const tweetContainer = $("div.tweet.permalink-tweet");
+  let tweet = ($("meta[property='og:description']").attr("content") || "")
     .replace(/\n/g, " ")
     .replace(/^“|”$/g, "");
+  if (tweet.length == 0) {
+    return "";
+  }
   let date = "";
   let verified = "";
   let image = "";
-  let images = tweetContainer.find(".card-photo .media img");
-  let videos = 0;
-  let extra = "";
-  // let videos = $("meta[property='og:video:url']").length;
+  let images = $("meta[property='og:image:user_generated']").length;
+  let videos = $("meta[property='og:video:url']").length;
   if (tweetContainer.length > 0) {
     date = tweetContainer
-      .find(".tweet-content .metadata a").text();
+      .find("a.tweet-timestamp span.u-hiddenVisually, span._timestamp")
+      .last()
+      .text();
     verified =
-      tweetContainer.find(".fullname .badge img").length > 0
+      tweetContainer.find(".permalink-header span.Icon--verified").length > 0
         ? " ✔"
         : "";
     const image = tweetContainer
-      .find(".tweet-content .media img").attr("src");
-
+      .find("div.AdaptiveMedia-photoContainer.js-adaptive-photo ")
+      .attr("data-image-url");
     if (videos > 0) {
       let video = $("meta[property='og:video:url']").attr("content");
-      extra += ` (Video: ${video})`;
-    } else if (images.length > 0) {
-      let image = images.first().attr("src").replace(":small", "");
-      extra += ` (Image (1/${images.length}): ${image} )`;
-    }
-
-    const summary = tweetContainer.find(".card-summary")
-    if(summary.length > 0) {
-      const link = summary.find(".title a")
-      extra += ` (Link: ${link.text().trim()} - ${link.attr("href")} - ${summary.find(".description").text().trim()})`
+      tweet += ` (Video: ${video})`;
+    } else if (images > 0) {
+      let image = $("meta[property='og:image']").attr("content");
+      tweet += ` (Image (1/${images}): ${image})`;
     }
   }
-  if (tweet.length == 0) {
-    if (extra.length == 0) {
-      return "";
-    } else {
-      return `TWEET: ${author} (${handle}${verified}) at ${date} - ${extra}`
-    }
-  } else {
-    return `TWEET: ${tweet} — ${author} (${handle}${verified}) ${date} ${extra}`;
-  }
+  return `TWEET: ${tweet} — ${author} (@${handle}${verified}) ${date}`;
 });
 handlers.set("www.twitter.com", handlers.get("twitter.com"));
 
@@ -146,9 +135,9 @@ handlers.set("default", $ => {
 function handleBody(url, response) {
   const $ = cheerio.load(response.body);
   if (handlers.has(url.host)) {
-    return handlers.get(url.host)($, url);
+    return handlers.get(url.host)($);
   } else {
-    return handlers.get("default")($, url);
+    return handlers.get("default")($);
   }
 }
 

@@ -1,7 +1,7 @@
 const forecast = require("forecast");
 const request = require("request");
 const { escape } = require("querystring");
-const { darkSkyAPIKey, gcpGeocodingApiKey } = require("../secrets");
+const { darkSkyAPIKey } = require("../secrets");
 const winston = require("winston");
 const util = require("util");
 const db = require("../lib/db");
@@ -86,26 +86,32 @@ function getWeatherLocation(words, channel, nick, cb) {
 
 function weather(bot, words, from, to) {
   getWeatherLocation(words, to, from, query => {
-    let url = `https://maps.googleapis.com/maps/api/geocode/json?key=${escape(gcpGeocodingApiKey)}&address=${escape(
-      query
-    )}`;
+    let url = `https://nominatim.openstreetmap.org/search?q=${escape(query)}&format=json`
     winston.info(url);
     const sendTo = to == _bot.nick ? from : to;
 
-    request(url, (err, response) => {
+    const options = {
+      headers: {
+        "User-Agent": "IRC weather bot (https://github.com/cheald/memebot)"
+      }
+    };
+
+    request(url, options, (err, response) => {
       if (err) {
         winston.error(err);
         return;
       }
       const resp = JSON.parse(response.body);
-      if (!resp.results[0]) {
+      const loc = resp[0];
+      if (!loc) {
         bot.say(sendTo, `${from}: Sorry, I couldn't find that location`);
         return;
       }
-      const location = resp.results[0].geometry.location;
-      const lat = location.lat;
-      const long = location.lng;
-      const niceLocation = resp.results[0].formatted_address;
+      const lat = loc.lat;
+      const long = loc.lon;
+      const niceLocation = loc.display_name;
+
+      winston.info(`Resolved ${query} => ${lat},${long} (${niceLocation})`)
 
       url = `https://api.darksky.net/forecast/${darkSkyAPIKey}/${lat},${long}`;
       winston.info(url);

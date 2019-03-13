@@ -5,6 +5,7 @@
     "html-entities": "^1.2.1",
     "irc": "latest",
     "moment": "^2.18.1",
+    "numeral": "^2.0.6",
     "pg": "^6.2.4",
     "request": "latest",
     "winston": "latest",

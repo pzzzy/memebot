@@ -5,6 +5,7 @@ const winston = require("winston");
 const config = require("../config");
 const Entities = require("html-entities").AllHtmlEntities;
 const entities = new Entities();
+const numeral = require("numeral");
 
 const URL_RE = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=\(\),]*)/i;
 const handlers = new Map();
@@ -50,6 +51,19 @@ handlers.set("twitter.com", $ => {
   let image = "";
   let images = $("meta[property='og:image:user_generated']").length;
   let videos = $("meta[property='og:video:url']").length;
+
+  let replies = tweetContainer.find(".ProfileTweet-action--reply .ProfileTweet-actionCount").data("tweet-stat-count");
+  let retweets = tweetContainer.find(".ProfileTweet-action--retweet .ProfileTweet-actionCount").data("tweet-stat-count");
+  let likes = tweetContainer.find(".ProfileTweet-action--favorite .ProfileTweet-actionCount").data("tweet-stat-count");
+
+  let metrics = ""
+  if (replies && likes && retweets) {
+    const rpt = numeral(replies).format('0a')
+    const rtt = numeral(retweets).format('0a')
+    const lkt = numeral(likes).format('0a')
+    metrics = ` 💬 ${rpt}, ↻ ${rtt}, ♥ ${lkt}`
+  }
+
   if (tweetContainer.length > 0) {
     date = tweetContainer
       .find("a.tweet-timestamp span.u-hiddenVisually, span._timestamp")
@@ -70,7 +84,7 @@ handlers.set("twitter.com", $ => {
       tweet += ` (Image (1/${images}): ${image})`;
     }
   }
-  return `TWEET: ${tweet} — ${author} (@${handle}${verified}) ${date}`;
+  return `TWEET: ${tweet} — ${author} (@${handle}${verified}${metrics}) ${date}`;
 });
 handlers.set("www.twitter.com", handlers.get("twitter.com"));
 
@@ -149,7 +163,7 @@ function parseURL(bot, channel, url) {
   const parsed = mungeURL(url);
   if (isBlacklisted(parsed)) {
     winston.info("Site is blacklisted, skipping");
-    return;    
+    return;
   }
 
   winston.info("Fetch URL:", parsed.href);

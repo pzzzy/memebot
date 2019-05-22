@@ -4,10 +4,10 @@
     "forecast": "^0.3.2",
     "html-entities": "^1.2.1",
     "irc": "latest",
-    "moment": "^2.18.1",
+    "moment": "^2.24.0",
     "numeral": "^2.0.6",
     "pg": "^6.2.4",
-    "request": "latest",
+    "request": "^2.88.0",
     "winston": "latest",
     "yahoo-stocks": "^2.0.1"
   }

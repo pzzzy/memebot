@@ -88,7 +88,7 @@ handlers.set("twitter.com", $ => {
 });
 handlers.set("www.twitter.com", handlers.get("twitter.com"));
 
-handlers.set("www.instagram.com", $ => {
+/*handlers.set("www.instagram.com", $ => {
   let desc = ($("meta[property='og:description']").attr("content") || "")
     .trim();
   if (desc.length > 0) {
@@ -104,7 +104,7 @@ handlers.set("www.instagram.com", $ => {
       return bits[0];
     }
   }
-});
+}); */
 
 handlers.set("www.youtube.com", $ => {
   let title = ($("meta[property='og:title']").attr("content") || "").trim();

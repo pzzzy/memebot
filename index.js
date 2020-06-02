@@ -4,6 +4,13 @@ const IRC = require("irc");
 const winston = require("winston");
 const util = require("util");
 
+// https://github.com/winstonjs/winston/tree/2.x
+winston.configure({
+    transports: [
+      new winston.transports.Console({ colorize: 'all' }),
+    ]
+   });
+
 var d = require("domain").create();
 var bot;
 

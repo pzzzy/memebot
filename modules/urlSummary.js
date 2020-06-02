@@ -33,79 +33,6 @@ function mungeURL(url) {
   return u;
 }
 
-handlers.set("twitter.com", $ => {
-  const handle =
-    ($("meta[property='og:url']").attr("content") || "").split("/")[3] ||
-    "unknown";
-  const author = ($("meta[property='og:title']").attr("content") || "")
-    .replace(" on Twitter", "");
-  const tweetContainer = $("div.tweet.permalink-tweet");
-  let tweet = ($("meta[property='og:description']").attr("content") || "")
-    .replace(/\n/g, " ")
-    .replace(/^“|”$/g, "");
-  if (tweet.length == 0) {
-    return "";
-  }
-  let date = "";
-  let verified = "";
-  let image = "";
-  let images = $("meta[property='og:image:user_generated']").length;
-  let videos = $("meta[property='og:video:url']").length;
-
-  let replies = tweetContainer.find(".ProfileTweet-action--reply .ProfileTweet-actionCount").data("tweet-stat-count");
-  let retweets = tweetContainer.find(".ProfileTweet-action--retweet .ProfileTweet-actionCount").data("tweet-stat-count");
-  let likes = tweetContainer.find(".ProfileTweet-action--favorite .ProfileTweet-actionCount").data("tweet-stat-count");
-
-  let metrics = ""
-  if (replies && likes && retweets) {
-    const rpt = numeral(replies).format('0a')
-    const rtt = numeral(retweets).format('0a')
-    const lkt = numeral(likes).format('0a')
-    metrics = ` 💬 ${rpt}, ↻ ${rtt}, ♥ ${lkt}`
-  }
-
-  if (tweetContainer.length > 0) {
-    date = tweetContainer
-      .find("a.tweet-timestamp span.u-hiddenVisually, span._timestamp")
-      .last()
-      .text();
-    verified =
-      tweetContainer.find(".permalink-header span.Icon--verified").length > 0
-        ? " ✔"
-        : "";
-    const image = tweetContainer
-      .find("div.AdaptiveMedia-photoContainer.js-adaptive-photo ")
-      .attr("data-image-url");
-    if (videos > 0) {
-      let video = $("meta[property='og:video:url']").attr("content");
-      tweet += ` (Video: ${video})`;
-    } else if (images > 0) {
-      let image = $("meta[property='og:image']").attr("content");
-      tweet += ` (Image (1/${images}): ${image})`;
-    }
-  }
-  return `TWEET: ${tweet} — ${author} (@${handle}${verified}${metrics}) ${date}`;
-});
-handlers.set("www.twitter.com", handlers.get("twitter.com"));
-
-/*handlers.set("www.instagram.com", $ => {
-  let desc = ($("meta[property='og:description']").attr("content") || "")
-    .trim();
-  if (desc.length > 0) {
-    let bits = desc.split(" - ", 2);
-    desc = bits[1];
-    bits = desc
-      .replace(" on Instagram:", ":")
-      .replace(/[“”]/g, "")
-      .split(":", 2);
-    if (bits.length > 1) {
-      return `${bits[1].trim()} — ${bits[0].trim()}`;
-    } else {
-      return bits[0];
-    }
-  }
-}); */
-
 handlers.set("www.youtube.com", $ => {
   let title = ($("meta[property='og:title']").attr("content") || "").trim();
   if (title.length == 0) {
@@ -140,8 +67,8 @@ handlers.set("default", $ => {
     return title;
   } else {
     winston.info("No good desc or title");
-    winston.info("title", title);
-    winston.info("desc", desc);
+    winston.info(`title: ${title}`);
+    winston.info(`desc: ${desc}`);
     return "";
   }
 });
@@ -166,7 +93,7 @@ function parseURL(bot, channel, url) {
     return;
   }
 
-  winston.info("Fetch URL:", parsed.href);
+  winston.info(`Fetch URL: ${parsed.href}`);
   request(parsed.href, { method: "HEAD" }, (err, response) => {
     if (err) {
       winston.error(err);
@@ -215,7 +142,7 @@ function parseMessage(bot, from, to, message) {
   let msg = message.args[1];
   const matches = msg.match(URL_RE);
   if (matches) {
-    const sendTo = to == _bot.nick ? from : to;
+    const sendTo = to == bot.nick ? from : to;
     url = matches[0];
     url = url.replace(/[,\(\)]$/, "");
     parseURL(bot, sendTo, matches[0]);
@@ -257,5 +184,6 @@ function setup(bot, commands) {
 }
 
 module.exports = {
-  setup: setup
+  setup: setup,
+  parseMessage: parseMessage
 };

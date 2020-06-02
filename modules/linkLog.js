@@ -66,8 +66,8 @@ function logLink(bot, res, channel, normalized, user) {
   } else {
     winston.info("URL not found, crediting to", channel, normalized);
     db.query(
-      "INSERT INTO links (href, owner, channel, times_seen) VALUES ($1, $2, $3, $4)",
-      [normalized, user, channel, 1],
+      "INSERT INTO links (href, owner, channel, first_seen, times_seen) VALUES ($1, $2, $3, $4, $5)",
+      [normalized, user, channel, new Date(), 1],
       (err, res) => {
         if (err) {
           winston.error(err);

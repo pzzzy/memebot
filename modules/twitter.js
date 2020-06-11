@@ -71,7 +71,7 @@ function parseURL(bot, user, channel, url) {
     return;
   }
   const matched = parsed.path.match(/(?:#!\/)?\w+\/status(?:es)?\/(\d+)/);
-  if (matched.length !== 2) {
+  if (matched === null || matched.length !== 2) {
     return;
   }
   const tweet_id = matched[1];

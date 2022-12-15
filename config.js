@@ -7,11 +7,11 @@ module.exports = {
     otherBots: ["meme"],
     yieldDomains: ["twitter.com"]
   },
-  admins: { Antiarc: true },
+  admins: { sysrq: true },
   pg: {
     user: "memebot", //env var: PGUSER
     database: "memebot", //env var: PGDATABASE
-    host: "localhost",
+    host: "127.0.0.1",
     password: 'memebot',  //env var: PGPASSWORD
     port: 5432, //env var: PGPORT
     max: 10, // max number of clients in the pool
@@ -19,6 +19,6 @@ module.exports = {
   },
   summaryBlacklist: [
     /userbenchmark\.com$/,
-    /blacklist-test/
+    /twitter\.com$/
   ]
 };

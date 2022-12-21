@@ -25,7 +25,8 @@ function wowtoken(bot, _words, from, to) {
         winston.error('Error fetching WoWToken price', error);
       } else {
         const price = JSON.parse(body).price / 10000
-        bot.say(sendTo, `Current US WoWToken price: ${price} Gold`)
+        const formattedPrice = new Intl.NumberFormat().format(price) + "g"
+        bot.say(sendTo, `Current US WoWToken price: ${formattedPrice}`)
       }
     })
     })

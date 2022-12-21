@@ -18,6 +18,11 @@ function parseTweet(bot, channel, tweet) {
   let text = tweet.full_text || tweet.text;
   let media_text = ""
 
+  // Unescape &, <, and > characters
+  text = text.replace(/&amp;/g, "&");
+  text = text.replace(/&lt;/g, "<");
+  text = text.replace(/&gt;/g, ">");
+
   //const metrics = ` 💬 ${rpt}, ↻ ${retweet_count}, ♥ ${favorite_count}`
   const metrics = ` ↻ ${tweet.retweet_count}, ♥ ${tweet.favorite_count}`
   const verified = tweet.user.verified ? " ✔" : "";

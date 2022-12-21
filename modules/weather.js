@@ -1,86 +1,43 @@
-const forecast = require("forecast");
 const request = require("request");
 const { escape } = require("querystring");
-const { darkSkyAPIKey } = require("../secrets");
+const { weatherAPIKey } = require("../secrets");
+const sqlite3 = require("sqlite3").verbose();
 const winston = require("winston");
-const util = require("util");
-const db = require("../lib/db");
 
-const emojiMap = {
-  "clear-day": "☀️",
-  "clear-night": "🌙",
-  rain: "🌦️",
-  snow: "❄️",
-  wind: "💨",
-  fog: "🌫️",
-  cloudy: "☁️",
-  "partly-cloudy-day": "⛅",
-  "partly-cloudy-night": "⛅"
-};
-
-const BEARINGS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+const db = new sqlite3.Database("weather.db");
 
 let _bot = null;
-
-function bearingToString(windBearing) {
-  const index = Math.floor((windBearing - 22.5) / 360 * 8);
-  return BEARINGS[index % 8];
-}
 
 function getWeatherLocation(words, channel, nick, cb) {
   let location = words.slice(1, words.length).join(" ");
 
-  let inserter = () => {
-    db.query(
-      "SELECT id FROM weather WHERE channel = $1::text AND nick = $2::text",
-      [channel, nick],
-      (err, res) => {
-        if (err) {
-          winston.error("Error querying weather", err);
-          return cb(location);
-        }
-        let entries = res.rows.length;
-        let query = null;
-        let args = null;
-        if (entries === 0) {
-          query =
-            "INSERT INTO weather (channel, nick, location) VALUES ($1, $2, $3)";
-          args = [channel, nick, location];
-        } else {
-          query =
-            "UPDATE weather SET location = $1 WHERE channel = $2::text AND nick = $3::text";
-          args = [location, channel, nick];
-        }
-        db.query(query, args, (err, res) => {
-          if (err) {
-            winston.error("Error querying weather", err);
-          }
-          return cb(location);
-        });
-      }
-    );
-  };
-
   if (location.trim() === "") {
-    winston.info("querying");
-    db.query(
-      "SELECT location FROM weather WHERE nick = $1::text AND channel = $2::text",
+    db.get(
+      "SELECT location FROM weather WHERE nick = ? AND channel = ?",
       [nick, channel],
-      (err, res) => {
-        winston.info(err, res);
+      (err, row) => {
         if (err) {
           winston.error("Error querying weather", err);
           return;
         }
-        if (res.rows.length > 0) {
-          cb(res.rows[0].location);
+        if (row) {
+          cb(row.location);
         } else {
-          inserter();
+          cb(null);
         }
       }
     );
   } else {
-    inserter();
+    db.run(
+      "INSERT OR REPLACE INTO weather (channel, nick, location) VALUES (?, ?, ?)",
+      [channel, nick, location],
+      err => {
+        if (err) {
+          winston.error("Error querying weather", err);
+        }
+        cb(location);
+      }
+    );
   }
 }
 
@@ -111,60 +68,44 @@ function weather(bot, words, from, to) {
       const long = loc.lon;
       const niceLocation = loc.display_name;
 
-      winston.info(`Resolved ${query} => ${lat},${long} (${niceLocation})`)
+      winston.info(`Resolved ${query} => ${lat},${long}`);
 
-      url = `https://api.darksky.net/forecast/${darkSkyAPIKey}/${lat},${long}`;
-      winston.info(url);
-      request(url, (err, response) => {
+      const weatherURL = `http://api.weatherapi.com/v1/forecast.json?key=${weatherAPIKey}&q=${lat},${long}&days=1&aqi=no&alerts=no`;
+
+      request(weatherURL, options, (err, response) => {
         if (err) {
           winston.error(err);
           return;
         }
-        const weather = JSON.parse(response.body);
-        const summary = weather.currently.summary;
-        const emoji = emojiMap[weather.currently.icon];
-        const temp = Math.floor(weather.currently.temperature);
-        const windSpeed = weather.currently.windSpeed;
-        const bearing = weather.currently.windBearing;
-        bot.say(
-          sendTo,
-          `${from}: ${emoji}${emoji
-            ? " "
-            : ""}${summary} in ${niceLocation} (${temp}F, wind ${bearingToString(
-            bearing
-          )} @ ${windSpeed}MPH, humidity ${Math.floor(
-            weather.currently.humidity * 100
-          )}%)`
-        );
+        const weatherData = JSON.parse(response.body);
+
+        // extract the current weather conditions
+        const currentWeather = weatherData.current;
+        const currentTempF = currentWeather.temp_f;
+        const currentConditionText = currentWeather.condition.text;
+        const currentWindMph = currentWeather.wind_mph;
+        const currentWindDir = currentWeather.wind_dir;
+        const currentHumidity = currentWeather.humidity;
+
+        // extract the forecast conditions
+        const forecastWeather = weatherData.forecast.forecastday[0].day;
+        const forecastConditionText = forecastWeather.condition.text;
+        const forecastMinTempF = forecastWeather.mintemp_f;
+        const forecastMaxTempF = forecastWeather.maxtemp_f;
+        const forecastPrecipMm = forecastWeather.totalprecip_mm;
+        const forecastPrecipIn = forecastWeather.totalprecip_in;
+
+        // format the weather summary
+        const weatherSummary = `Weather for ${niceLocation}: ${currentTempF}°F (${currentConditionText}), wind ${currentWindMph} mph ${currentWindDir}, humidity ${currentHumidity}%. Forecast for tomorrow: ${forecastMinTempF}-${forecastMaxTempF}°F (${forecastConditionText}), precip ${forecastPrecipMm} mm/${forecastPrecipIn} in.`;
+
+        // print the weather summary to the channel
+        bot.say(sendTo, weatherSummary);
       });
     });
   });
 }
 
-function migrateSchema() {
-  const query = `
-    CREATE TABLE IF NOT EXISTS weather (
-      id BIGSERIAL PRIMARY KEY,
-      channel VARCHAR(256) NOT NULL,
-      nick VARCHAR (256) NOT NULL,
-      location VARCHAR(256) NOT NULL
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS channel_nick ON weather (channel, nick);
-    `;
-  db.query(query, [], (err, res) => {
-    if (err) {
-      winston.error(err);
-      return;
-    }
-  });
-}
-
-function setup(bot, commands) {
+module.exports = function(bot) {
   _bot = bot;
-  commands.set("weather", weather);
-  migrateSchema();
-}
-
-module.exports = {
-  setup: setup
+  return { weather };
 };

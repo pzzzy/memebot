@@ -1,7 +1,7 @@
 const forecast = require("forecast");
 const request = require("request");
 const { escape } = require("querystring");
-const { darkSkyAPIKey } = require("../secrets");
+const { pirateWeatherAPIKey } = require("../secrets");
 const winston = require("winston");
 const util = require("util");
 const db = require("../lib/db");
@@ -62,12 +62,10 @@ function getWeatherLocation(words, channel, nick, cb) {
   };
 
   if (location.trim() === "") {
-    winston.info("querying");
     db.query(
       "SELECT location FROM weather WHERE nick = $1::text AND channel = $2::text",
       [nick, channel],
       (err, res) => {
-        winston.info(err, res);
         if (err) {
           winston.error("Error querying weather", err);
           return;
@@ -87,7 +85,7 @@ function getWeatherLocation(words, channel, nick, cb) {
 function weather(bot, words, from, to) {
   getWeatherLocation(words, to, from, query => {
     let url = `https://nominatim.openstreetmap.org/search?q=${escape(query)}&format=json`
-    winston.info(url);
+    winston.debug(url);
     const sendTo = to == _bot.nick ? from : to;
 
     const options = {
@@ -111,16 +109,17 @@ function weather(bot, words, from, to) {
       const long = loc.lon;
       const niceLocation = loc.display_name;
 
-      winston.info(`Resolved ${query} => ${lat},${long} (${niceLocation})`)
+      winston.debug(`Resolved ${query} => ${lat},${long} (${niceLocation})`)
 
-      url = `https://api.darksky.net/forecast/${darkSkyAPIKey}/${lat},${long}`;
-      winston.info(url);
+      url = `https://api.pirateweather.net/forecast/${pirateWeatherAPIKey}/${lat},${long}`;
+      winston.debug(url);
       request(url, (err, response) => {
         if (err) {
           winston.error(err);
           return;
         }
         const weather = JSON.parse(response.body);
+        winston.debug(weather);
         const summary = weather.currently.summary;
         const emoji = emojiMap[weather.currently.icon];
         const temp = Math.floor(weather.currently.temperature);
@@ -166,5 +165,6 @@ function setup(bot, commands) {
 }
 
 module.exports = {
-  setup: setup
+  setup: setup,
+  weather: weather
 };

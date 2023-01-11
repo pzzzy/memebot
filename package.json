@@ -6,7 +6,7 @@
     "irc": "latest",
     "moment": "^2.24.0",
     "numeral": "^2.0.6",
-    "pg": "^6.2.4",
+    "pg": "^8.8.0",
     "request": "^2.88.0",
     "simple-oauth2": "^5.0.0",
     "twitter-lite": "^0.13.0",

@@ -1,10 +1,32 @@
-const forecast = require("forecast");
+const sqlite3 = require("sqlite3");
+const fs = require('fs');
+const path = require('path');
 const request = require("request");
-const { escape } = require("querystring");
+const util = require("util");
+const { escape } = require("sqlite3");
 const { pirateWeatherAPIKey } = require("../secrets");
 const winston = require("winston");
-const util = require("util");
-const db = require("../lib/db");
+const dbPath = path.join(__dirname, 'weather.db');
+
+const dbExists = fs.existsSync(dbPath);
+let db = new sqlite3.Database(dbPath);
+
+if (!dbExists) {
+  db.run(`
+    CREATE TABLE weather (
+      id INTEGER PRIMARY KEY,
+      channel TEXT NOT NULL,
+      nick TEXT NOT NULL,
+      location TEXT NOT NULL
+    );
+  `, (err) => {
+    if (err) {
+      winston.error(`Error creating weather table: ${err}`);
+    } else {
+      winston.debug(`Successfully created weather table`);
+    }
+  });
+}
 
 const emojiMap = {
   "clear-day": "☀️",
@@ -29,142 +51,121 @@ function bearingToString(windBearing) {
 
 function getWeatherLocation(words, channel, nick, cb) {
   let location = words.slice(1, words.length).join(" ");
+  // Escape the location input to prevent SQL injection
+  location = db.escape(location);
 
   let inserter = () => {
-    db.query(
-      "SELECT id FROM weather WHERE channel = $1::text AND nick = $2::text",
+    db.get(
+      "SELECT id FROM weather WHERE channel = ? AND nick = ?",
       [channel, nick],
-      (err, res) => {
+      (err, row) => {
         if (err) {
           winston.error("Error querying weather", err);
           return cb(location);
         }
-        let entries = res.rows.length;
-        let query = null;
-        let args = null;
-        if (entries === 0) {
-          query =
-            "INSERT INTO weather (channel, nick, location) VALUES ($1, $2, $3)";
-          args = [channel, nick, location];
-        } else {
-          query =
-            "UPDATE weather SET location = $1 WHERE channel = $2::text AND nick = $3::text";
-          args = [location, channel, nick];
-        }
-        db.query(query, args, (err, res) => {
-          if (err) {
-            winston.error("Error querying weather", err);
-          }
-          return cb(location);
-        });
-      }
-    );
-  };
+        if (row === undefined) {
+          db.run(
+            "INSERT INTO weather (channel, nick, location) VALUES (?, ?, ?)",
+[channel, nick, location],
+(err) => {
+if (err) {
+winston.error("Error querying weather", err);
+}
+return cb(location);
+}
+);
+} else {
+db.run(
+"UPDATE weather SET location = ? WHERE channel = ? AND nick = ?",
+[location, channel, nick],
+(err) => {
+if (err) {
+winston.error("Error querying weather", err);
+}
+return cb(location);
+}
+);
+}
+}
+);
+};
 
-  if (location.trim() === "") {
-    db.query(
-      "SELECT location FROM weather WHERE nick = $1::text AND channel = $2::text",
-      [nick, channel],
-      (err, res) => {
-        if (err) {
-          winston.error("Error querying weather", err);
-          return;
-        }
-        if (res.rows.length > 0) {
-          cb(res.rows[0].location);
-        } else {
-          inserter();
-        }
-      }
-    );
-  } else {
-    inserter();
-  }
+if (location.trim() === "") {
+db.get(
+"SELECT location FROM weather WHERE nick = ? AND channel = ?",
+[nick, channel],
+(err, row) => {
+if (err) {
+winston.error("Error querying weather", err);
+return;
+}
+if (row) {
+cb(row.location);
+} else {
+inserter();
+}
+}
+);
+} else {
+inserter();
+}
 }
 
 function weather(bot, words, from, to) {
-  getWeatherLocation(words, to, from, query => {
-    let url = `https://nominatim.openstreetmap.org/search?q=${escape(query)}&format=json`
-    winston.debug(url);
-    const sendTo = to == _bot.nick ? from : to;
+getWeatherLocation(words, to, from, query => {
+let url = https://nominatim.openstreetmap.org/search?q=${escape(query)}&format=json
+winston.debug(url);
+const sendTo = to == _bot.nick ? from : to;
+  const options = {
+  headers: {
+    "User-Agent": "IRC weather bot (https://github.com/cheald/memebot)"
+  }
+};
 
-    const options = {
-      headers: {
-        "User-Agent": "IRC weather bot (https://github.com/cheald/memebot)"
-      }
-    };
+request(url, options, (err, response) => {
+  if (err) {
+    winston.error(err);
+    return;
+  }
+  const resp = JSON.parse(response.body);
+  const loc = resp[0];
+  if (!loc) {
+    bot.say(sendTo, `${from}: Sorry, I couldn't find that location`);
+    return;
+  }
+  const lat = loc.lat;
+  const long = loc.lon;
+  const niceLocation = loc.display_name;
 
-    request(url, options, (err, response) => {
-      if (err) {
-        winston.error(err);
-        return;
-      }
-      const resp = JSON.parse(response.body);
-      const loc = resp[0];
-      if (!loc) {
-        bot.say(sendTo, `${from}: Sorry, I couldn't find that location`);
-        return;
-      }
-      const lat = loc.lat;
-      const long = loc.lon;
-      const niceLocation = loc.display_name;
+  winston.debug(`Resolved ${query} => ${lat},${long} (${niceLocation})`)
 
-      winston.debug(`Resolved ${query} => ${lat},${long} (${niceLocation})`)
-
-      url = `https://api.pirateweather.net/forecast/${pirateWeatherAPIKey}/${lat},${long}`;
-      winston.debug(url);
-      request(url, (err, response) => {
-        if (err) {
-          winston.error(err);
-          return;
-        }
-        const weather = JSON.parse(response.body);
-        winston.debug(weather);
-        const summary = weather.currently.summary;
-        const emoji = emojiMap[weather.currently.icon];
-        const temp = Math.floor(weather.currently.temperature);
-        const windSpeed = weather.currently.windSpeed;
-        const bearing = weather.currently.windBearing;
-        bot.say(
-          sendTo,
-          `${from}: ${emoji}${emoji
-            ? " "
-            : ""}${summary} in ${niceLocation} (${temp}F, wind ${bearingToString(
-            bearing
-          )} @ ${windSpeed}MPH, humidity ${Math.floor(
-            weather.currently.humidity * 100
-          )}%)`
-        );
-      });
-    });
-  });
-}
-
-function migrateSchema() {
-  const query = `
-    CREATE TABLE IF NOT EXISTS weather (
-      id BIGSERIAL PRIMARY KEY,
-      channel VARCHAR(256) NOT NULL,
-      nick VARCHAR (256) NOT NULL,
-      location VARCHAR(256) NOT NULL
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS channel_nick ON weather (channel, nick);
-    `;
-  db.query(query, [], (err, res) => {
+  url = `https://api.pirateweather.net/v2/forecast/${lat},${long}?units=si`;
+  request(url, options, (err, response) => {
     if (err) {
       winston.error(err);
       return;
     }
-  });
+    let forecast = JSON.parse(response.body);
+    let summary = forecast.currently.summary;
+    let temperature = forecast.currently.temperature;
+    let humidity = forecast.currently.humidity * 100;
+    let windSpeed = forecast.currently.windSpeed;
+    let windBearing = forecast.currently.windBearing;
+    let icon = emojiMap[forecast.currently.icon];
+    if (!icon) {
+      icon = "❓";
 }
-
-function setup(bot, commands) {
-  _bot = bot;
-  commands.set("weather", weather);
-  migrateSchema();
+let message = ${from}: The weather in ${niceLocation} is currently ${icon} ${summary}, with a temperature of ${temperature}℃, humidity of ${humidity}%, wind speed of ${windSpeed} m/s, and wind bearing of ${bearingToString(windBearing)}.;
+bot.say(sendTo, message);
+});
+});
+});
 }
 
 module.exports = {
-  setup: setup,
-  weather: weather
+register: (bot) => {
+_bot = bot;
+bot.addCommand("weather", weather);
+}
 };
+
